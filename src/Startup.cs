@@ -1,8 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using AdvantageTool.Data;
 using AdvantageTool.Utility;
@@ -33,7 +33,9 @@ namespace AdvantageTool
             });
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+                // options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
+                options.UseSqlite(Configuration.GetConnectionString("DefaultConnection"))
+                );
 
             services.AddDbContext<StateDbContext>(options =>
                 options.UseInMemoryDatabase("States"));
@@ -50,16 +52,19 @@ namespace AdvantageTool
 
             // Use app specific cookie name so both AdvantagePlatform and AdvantageTool can run
             // on localhost at the same time.
-            services.ConfigureApplicationCookie(options => options.Cookie.Name = "AdvantageTool" );
+            services.ConfigureApplicationCookie(options => options.Cookie.Name = "AdvantageTool");
 
             // Prevent X-Frame-Options header from being sent so that the Tool can appear
             // within an iframe on the platform
             services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
 
-            services.AddMvc()
-                .AddRazorPagesOptions(options => options.Conventions.AuthorizeFolder("/Platforms"))
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-
+            // services.AddMvc()
+            //     .AddRazorPagesOptions(options => options.Conventions.AuthorizeFolder("/Platforms"))
+            //     ;
+            // .SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+            services.AddControllersWithViews();
+            services.AddRazorPages(options => options.Conventions.AuthorizeFolder("/Platforms"));
+            // services.AddApplicationInsightsTelemetry();
             services.AddHttpClient();
 
             // Make AccessTokenService available for dependency injection.
@@ -67,7 +72,7 @@ namespace AdvantageTool
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -83,9 +88,19 @@ namespace AdvantageTool
             app.UseStatusCodePagesWithRedirects("/Error?httpStatusCode={0}");
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+
+            app.UseRouting();
+
             app.UseCookiePolicy();
             app.UseAuthentication();
-            app.UseMvc();
+            app.UseAuthorization();
+
+            // app.UseMvc();
+            app.UseEndpoints(endpoints =>
+                {
+                    endpoints.MapControllers();
+                    endpoints.MapRazorPages();
+                });
         }
     }
 }
